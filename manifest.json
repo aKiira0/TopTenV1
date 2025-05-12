@@ -1,0 +1,21 @@
+{
+  "name": "Top Ten - Pass & Play",
+  "short_name": "TopTen",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#00d4ff",
+  "description": "Le jeu Top Ten en version Pass & Play entre amis 🦄💩",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
