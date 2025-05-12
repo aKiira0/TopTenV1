@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- PWA manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <!-- iOS meta -->
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="icon" href="/icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#00d4ff">
+  <title>Top Ten 🦄💩 - Pass & Play</title>
+  <style>
+    body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    #app { width: 100%; max-width: 480px; background: linear-gradient(135deg, #0d1b2a, #1b263b); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); padding: 1.5rem; }
+    h1, h2 { text-align: center; margin-bottom: 1rem; background: linear-gradient(90deg, #00d4ff, #ff00c1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .screen { display: none; }
+    .active { display: block; }
+    label { display: block; margin-bottom: 0.5rem; }
+    input[type=number], input[type=text] { width: 100%; padding: 0.6rem; margin-bottom: 1rem; border: none; border-radius: 8px; font-size: 1rem; }
+    button { width: 100%; padding: 0.8rem; margin: 0.5rem 0; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; background: linear-gradient(90deg, #00d4ff, #ff00c1); color: #000; transition: transform 0.2s; }
+    button:hover { transform: scale(1.05); }
+    .card { margin: 1rem 0; padding: 1rem; background: #333; border-radius: 8px; font-size: 1.2rem; text-align: center; }
+    .tokens { display: flex; justify-content: space-around; margin-top: 1rem; font-size: 1.2rem; }
+    #feedback { text-align: center; font-size: 1.2rem; margin-top: 0.5rem; height: 1.4rem; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Setup -->
+    <div id="setup" class="screen active">
+      <h1>Top Ten 🦄💩</h1>
+      <label>Nombre de joueurs (4–8)</label>
+      <input type="number" id="playerCount" min="4" max="8" value="4">
+      <button id="startBtn">Lancer la partie</button>
+    </div>
+    <!-- Names -->
+    <div id="nameInput" class="screen">
+      <h2>Entrez les noms des joueurs 📝</h2>
+      <div id="playerNames"></div>
+      <button id="confirmNames">Valider les noms</button>
+    </div>
+    <!-- Game -->
+    <div id="game" class="screen">
+      <h2 id="roundTitle">Manche 1</h2>
+      <div id="themeCard" class="card"></div>
+      <button id="dealBtn">Distribuer numéros</button>
+      <div id="showNumber" class="card" style="display:none;"><p>Au tour de <strong><span id="currentPlayer"></span></strong></p><button id="revealBtn">🔍 Révéler</button><p id="numberDisplay" style="display:none;">Ton numéro secret est <strong><span id="secretNum"></span></strong></p><button id="nextNumber" style="display:none;">➡️ Suivant</button></div>
+      <div id="guessOrder" style="display:none;">
+        <p>CAP’TEN 🧢, devinez l’ordre :</p>
+        <div id="guessButtons"></div>
+        <div id="feedback"></div>
+      </div>
+      <div class="tokens">
+        <div>🦄 <span id="licorneCount"></span></div>
+        <div>💩 <span id="cacaCount"></span></div>
+      </div>
+    </div>
+    <!-- Guessing -->
+    <div id="guessing" class="screen">
+      <h2>Ordre final</h2>
+      <div id="answersList" class="card"></div>
+      <button id="nextRound">Manche suivante</button>
+    </div>
+    <!-- End -->
+    <div id="end" class="screen">
+      <h2 id="endMessage"></h2>
+      <button onclick="location.reload()">🔄 Rejouer</button>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const THEMES = [
+        "VOUS VOUS RÉVEILLEREZ DEMAIN ENCORE BOURRÉ(E) AVEC UN OBJET EN MAIN. LEQUEL ? DE L’OBJET BANAL AU GRAND N’IMPORTE QUOI !",
+        "NOOON... VOUS AVEZ OUBLIÉ VOS CAPOTES POUR CE SOIR ! AVEC QUOI IMPROVISER ? DU MOINS EFFICACE AU PLUS EFFICACE.",
+        "QUELLE BONNE RÉSOLUTION SEXUELLE VENEZ-VOUS DE PRENDRE POUR 2021 ? DE LA MODESTE À L’AMBITIEUSE.",
+        "DE QUOI AVEZ-VOUS PARLÉ LORS DU REPAS DE NOËL ? DU SUJET CONSENSUEL AU SUJET QUI A DÉRAPÉ EN GUERRE FAMILIALE.",
+        "VOUS FÊTEZ CETTE NOUVELLE ANNÉE À LA FISTINIÈRE : QUELLE EST LE NOM DE LA CHAMBRE QU’ON VOUS ATTRIBUE ? DE LA PETITE DOULEUR À LA GROSSE DOULEUR.",
+        "MINUIT EST PASSÉ, C’EST PARTI POUR DU GROS SON ! MIMEZ VOTRE DANSE, DE BIEN TIMIDE AU MÉGA SHOW !",
+        "VOUS AVEZ TROP BU ET VOUS ALLEZ VOMIR LÀ, MAINTENANT. MIMEZ, DE L’HONNEUR EST SAUF À VOUS RUINER LA SOIRÉE.",
+        "LE GODE QUE L’ON VOUS A OFFERT À NOËL EST DÉJÀ CASSÉ ! PAR QUOI LE REMPLACER ? DE ‘IL NE VAUT MIEUX PAS’ À ‘C’EST L’IDÉAL’.",
+        "DEUX DE VOS AMI(E)S SONT PARTI(E)S SE COUCHER PLUS TÔT. MAIS LES MURS DU SALON SONT TRÈS FINS ET VOUS LES ENTENDEZ. IMITEZ LES GRINCEMENTS DU LIT, DE DISCRETS À TRÈS VIGOUREUX.",
+        "“AVEC LE RECUL, FRANCHEMENT, 2020 C’ÉTAIT ...” COMPLÉTEZ, DU BILAN NÉGATIF AU BILAN POSITIF.",
+        "LEVEZ-VOUS ET MARCHEZ SUR UNE LIGNE DROITE IMAGINAIRE, DE TOTALEMENT SOBRE À BOURRÉ(E) COMME UN COING.",
+        "PENDANT QUE VOUS FAITES LA FÊTE, UNE CAMÉRA-ESPION FILME EN LIVE LE BABY-SITTER CHEZ VOUS. QUE DÉCOUVREZ-VOUS ? DE LA MAUVAISE À LA BONNE SURPRISE.",
+        "VOUS VOUS RÉVEILLEZ DANS UN LIT QUI N’EST PAS LE VÔTRE... MAIS AVEC QUI ? DE LA RENCONTRE COCASSE À LA HONTE INTERSIDÉRALE.",
+        "VOUS DEVEZ ENVOYER UN SEXTO MAIS VOTRE TÉLÉPHONE CORRIGE AUTOMATIQUEMENT VOS MOTS. QUEL MESSAGE PARTEZ-VOUS ENVOYER ? DE GÊNANT À ‘APPEL LA POLICE’.",
+        "VOUS OUVREZ LE FRIGO EN RENTRANT DE SOIRÉE. QU’EST-CE QUE VOUS BOUFFEZ DANS VOTRE ÉTAT ? DU PETIT PLAISIR COUPABLE AU VRAI CAUCHEMAR DIGESTIF.",
+        "CE BRUIT LÀ, C’ÉTAIT CLAIREMENT UN PET. MAIS QUI EN EST L’AUTEUR ? DU PLUS DISCRET AU COUPABLE FLAGRANT.",
+        "VOTRE EX DÉBARQUE À LA SOIRÉE. QUELLE EST VOTRE RÉACTION ? DE LA POKER FACE POLIE À LA DESCENTE DE SHOTS DE VENGEANCE.",
+        "VOUS JOUEZ À ACTION OU VÉRITÉ MAIS TOUT LE MONDE EST TRÈS, TROP MOTIVÉ. QUELLE EST L’ACTION QUE VOUS ACCEPTEZ ? DU COQUIN GÊNÉ AU ‘BON BAH J’AI PLUS DE DIGNITÉ’.",
+        "VOUS TROUVEZ UN TRUC SOUS LE COUSSIN DU CANAPÉ. QU’EST-CE QUE C’EST ? DU BANAL OUBLI AU GROS MYSTÈRE POISSEUX.",
+        "VOUS ENTENDEZ DES GÉMISSEMENTS DANS LES TOILETTES. QUELLE EST VOTRE RÉACTION ? DE L’INDIFFÉRENCE BLASÉE À L’ENQUÊTE DIGNE D’UN PODCAST.",
+        "LE DJ MET VOTRE GUILTY PLEASURE MUSICAL. C’EST QUOI ? DU TUBE HONTEUX AU VRAI APPEL AU TWERK.",
+        "VOUS DEVEZ INVENTER UN NOUVEAU COCKTAIL AVEC CE QUI RESTE. QU’Y A-T-IL DEDANS ? DU CHELOU BUVABLE AU LIQUIDE DE VAISSELLE ALCOOLISÉ.",
+        "VOUS RENTREZ CHEZ VOUS AVEC UNE PERSONNE RENCONTRÉE EN SOIRÉE. MAIS AU MOMENT D’ENLEVER LE PANTALON... SURPRISE ! DE LA GÊNE DIPLOMATIQUE AU ‘BON BAH J’VAIS ME RECONVERTIR MOINE’.",
+        "VOUS AVEZ EU UN ACCIDENT PENDANT L’ACTE. LEQUEL ? DE ‘ÇA RESTE ENTRE NOUS’ À ‘J’AI TACHÉ L’ÂME DU MATELAS’.",
+        "VOUS RECEVEZ UN SEXT SANS CONTEXTE. QU’EST-CE QU’IL DIT ? DU MESSAGE POÉTIQUE NSFW À L’AUDIO QU’ON PEUT JAMAIS DÉSENTENDRE.",
+        "VOUS AVEZ TROP BU, VOUS VOULEZ TEXTOTER VOTRE EX. QUEL EST LE MESSAGE ? DE LA TENTATIVE PATHÉTIQUE À L’HUMILIATION ÉTERNELLE.",
+        "VOUS FAITES UNE GÂTERIE MAIS UNE ODEUR VOUS AGRESSE. COMMENT VOUS RÉAGISSEZ ? DE POLI ET STOÏQUE À ‘FUITE STRATÉGIQUE ET MENTHE FORTE’.",
+        "VOUS PASSEZ LA NUIT DANS UNE MAISON TRÈS MAL ISOLÉE. QU’EST-CE QUE VOUS ENTENDEZ ? DE ‘TIENS, ÇA COUINE’ À ‘ON DIRAIT UN SACRIFICE DE CHÈVRE’.",
+        "VOUS DEVEZ INVENTER UN JOUET SEXUEL FAIT MAISON AVEC CE QUI VOUS ENTOURE. QUEL EST VOTRE CHEF-D’ŒUVRE ? DE ‘TECHNIQUEMENT ÇA MARCHE’ À ‘J’AI BESOIN D’UN CHIRURGIEN’.",
+        "LE PRÉSERVATIF A CRAQUÉ. COMMENT RÉAGISSEZ-VOUS ? DE ‘ZEN, ON GÈRE’ À ‘GOOGLE : PRÉNOMS QUI SE DONNENT EN PRISON’.",
+        "UN INVITÉ DÉCIDE DE SE METTRE NU SANS PRÉVENIR. QUELLE EST VOTRE RÉACTION ? DE ‘JE FAIS COMME SI DE RIEN N’ÉTAIT’ À ‘JE VAIS BOIRE JUSQU’À L’AMNÉSIE’.",
+        "VOUS ÊTES EN TRAIN DE FAIRE L’AMOUR MAIS UN DES PARTICIPANTS PLEURE. POURQUOI ? DE ‘ÇA ARRIVE’ À ‘IL/ELLE PENSAIT À SA MÈRE’.",
+        "VOUS FAITES UNE DÉMO DE VOTRE POSITION SEXUELLE PRÉFÉRÉE. MONTREZ ! DE ‘OK MARRANT’ À ‘J’AI BESOIN D’UN KINÉ MAINTENANT’.",
+        "VOUS AVEZ ÉTÉ FILMÉ(E) À VOTRE INSU PENDANT UN MOMENT TRÈS INTIME. QUEL EST LE TITRE DE LA VIDÉO ? DU SOFT ‘MOMENT DE TENDRESSE’ À ‘CE QUE J’AI FAIT AU CONCOMBRE EST ILLÉGAL’.",
+        "FAITES UN BRUIT AVEC VOTRE BOUCHE POUR DÉCRIRE UN MOMENT TRÈS SEXUEL, DE LA CATASTROPHE À L’ORGASME ABSOLU.",
+        "VOUS VOUS FAITES TATOUER CE SOIR. QUOI ? DU TATOUAGE PAS DINGUE AU PIRE CHOIX DE VOTRE VIE.",
+        "VOUS PARTICIPEZ À UN CONCOURS DE FAUX ORGASMES. FAITES-NOUS UNE DÉMO, DE LA PIRE PRESTATION À L’OSCAR DU CRI JOUISSIF.",
+        "VOUS DEVEZ ÉTALER UNE NOUVELLE TARTINADE À L’APÉRO. LAQUELLE ? DE LA DÉLICIEUSE À LA PLUS DÉGUEULASSE.",
+        "VOUS ÊTES LE ROI DU DÉGUSTE-PIED. COMMENT LES DÉVOREZ-VOUS ? DU DÉLICAT AU GLOUTON GORE.",
+        "VOUS DEVEZ INVENTER UN MOT POUR DÉSIGNER LE SEXE. DU PLUS MÉTAPHORIQUE AU PLUS CASH.",
+       "UN ESPRIT SEXUEL EST EN VOUS. QUEL GESTE FAITES-VOUS POUR SÉDUIRE ? DU PLUS MIGNON AU PLUS WAW.",
+        "VOUS ÉMETTEZ UN SON POUR DÉCRIRE UN MOMENT DE GÊNE ABSOLUE. DE LA GÊNE LÉGÈRE À LA GÊNE IRRÉCUPÉRABLE.",
+       "QUELQUE CHOSE SORT DE VOTRE BOUCHE LORS D’UNE FÊTE. DE LA BÊTISE À LA BOMBE SOCIALE."
+      ];
+      const NUMBERS = [1,2,3,4,5,6,7,8,9,10];
+      let players = [], secretNums = [], round=1, maxRounds=5, licorne=0, caca=0, capten=0, cur=0, order=[];
+      const screens=id=>document.getElementById(id);
+      const getElById = id => document.getElementById(id);
+      const show=id=>{['setup','nameInput','game','guessing','end'].forEach(i=>screens(i).classList.remove('active'));screens(id).classList.add('active');};
+      getElById('startBtn').onclick=()=>{const n=+getElById('playerCount').value; if(n>=4&&n<=8){licorne=n; screens('setup').classList.remove('active'); let c=getElById('playerNames'); c.innerHTML=''; for(let i=1;i<=n;i++){let inp=document.createElement('input'); inp.type='text'; inp.placeholder='Joueur '+i; inp.required=true; c.appendChild(inp);} show('nameInput');}};
+      getElById('confirmNames').onclick=()=>{players=Array.from(getElById('playerNames').querySelectorAll('input')).map(i=>i.value||i.placeholder); show('game'); initRound();};
+      function initRound(){ if(round>maxRounds) return endGame(); order=[]; secretNums=[]; cur=0; show('game'); getElById('roundTitle').innerText='Manche '+round; getElById('themeCard').innerText=THEMES[Math.floor(Math.random()*THEMES.length)]; getElById('licorneCount').innerText=licorne; getElById('cacaCount').innerText=caca; getElById('dealBtn').style.display='block'; getElById('showNumber').style.display='none'; getElById('guessOrder').style.display='none'; getElById('guessButtons').innerHTML=''; getElById('answersList').innerHTML=''; getElById('feedback').innerText=''; }
+      getElById('dealBtn').onclick=()=>{let pool=[...NUMBERS]; secretNums=players.map(_=>pool.splice(Math.floor(Math.random()*pool.length),1)[0]); getElById('dealBtn').style.display='none'; getElById('showNumber').style.display='block'; getElById('currentPlayer').innerText=players[cur];};
+      getElById('revealBtn').onclick=()=>{getElById('secretNum').innerText=secretNums[cur]; getElById('numberDisplay').style.display='block'; getElById('revealBtn').style.display='none'; getElById('nextNumber').style.display='block';};
+      getElById('nextNumber').onclick=()=>{cur++; getElById('numberDisplay').style.display='none'; getElById('revealBtn').style.display='block'; getElById('nextNumber').style.display='none'; if(cur<players.length){getElById('currentPlayer').innerText=players[cur];} else startGuess();};
+      function startGuess(){ getElById('showNumber').style.display='none'; getElById('guessOrder').style.display='block'; const btns=getElById('guessButtons'); btns.innerHTML=''; getElById('feedback').innerText=''; players.forEach((p,i)=>{let b=document.createElement('button'); b.innerText=p; b.onclick=()=>makeGuess(i); btns.appendChild(b);}); }
+      function makeGuess(i){ const n=secretNums[i]; const d=document.createElement('div'); d.innerText=`${players[i]} (${n})`; getElById('guessButtons').appendChild(d); order.push(n); let correct=true; if(order.length>1&&n<order[order.length-2]){ licorne--; caca++; getElById('licorneCount').innerText=licorne; getElById('cacaCount').innerText=caca; correct=false; if(licorne===0) return endGame(false);} getElById('feedback').innerText = correct? '✅ Correct !':'❌ Erreur !'; event.target.disabled=true; if(order.length===players.length) finishRound(); }
+      function finishRound(){
+        show('guessing');
+        // Afficher les réponses finales
+        getElById('answersList').innerHTML = players.map((p,i) => `${p}: ${secretNums[i]}`).join('<br>');
+        // Vérifier si l'ordre est strictement croissant
+        const isCorrect = order.every((v,i) => i === 0 || v >= order[i-1]);
+        // Afficher un feedback global
+        const feedbackEl = document.createElement('div');
+        feedbackEl.style.marginTop = '1rem';
+        feedbackEl.style.fontSize = '1.2rem';
+        feedbackEl.style.textAlign = 'center';
+        feedbackEl.textContent = isCorrect ? '🎉 L’ordre est correct !' : '⚠️ L’ordre comporte des erreurs.';
+        getElById('answersList').appendChild(feedbackEl);
+      }
+      getElById('nextRound').onclick=()=>{ round++; capten=(capten+1)%players.length; initRound(); };
+      function endGame(win){ show('end'); getElById('endMessage').innerText=win?'Victoire ! 🎉':'Défaite... 💀'; }
+    });
+  </script>
+</body>
+</html>
